@@ -22,6 +22,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -68,7 +69,11 @@ func dbConnect() *sql.DB {
 		if err != nil {
 			log.Fatalf("connectPostgres: Unable to connect to the database %s", err)
 		}
+		// if err := initDBPG(db); err != nil {
+		// 	log.Fatalf("initDBPG unable to create table: %s", err)
+		// }
 	}
+
 	return db
 }
 func checkDBObjectPG(dbname string, objname string) (int, error) {
@@ -91,7 +96,7 @@ func execStmt(tdll string) error {
 	return err
 }
 
-func initDB(db *sql.DB) error {
+func initDBPG(db *sql.DB) error {
 	//Create table if it doesn't exist
 	var errddl error
 	createEmp := `CREATE TABLE IF NOT EXISTS employees (
@@ -104,7 +109,7 @@ func initDB(db *sql.DB) error {
 	);`
 	if os.Getenv("DB_VERSION") == "" {
 		//
-		chk, chkerr := checkDBObjectPG(os.Getenv("DBNAME"), "emp")
+		chk, chkerr := checkDBObjectPG(os.Getenv("DBNAME"), "employee")
 		if chkerr != nil {
 			log.Fatal(chkerr)
 		}
@@ -132,7 +137,7 @@ type EmpData struct {
 
 func getEmployees(db *sql.DB) (EmpData, error) {
 	employees := EmpData{}
-	rows, err := db.Query("SELECT employee_id,first_name,last_name,hire_date,manager_id FROM employees LIMIT 10")
+	rows, err := db.Query("SELECT employee_id,first_name,last_name,hire_date,manager_id FROM employees ORDER BY 4 DESC LIMIT 10")
 	if err != nil {
 		return employees, fmt.Errorf("An employees rows scan error: %v", err)
 	}
@@ -153,8 +158,28 @@ func getEmployees(db *sql.DB) (EmpData, error) {
 	}
 	return employees, nil
 }
-func PostEmployee() {
+func PostEmployee(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	//
+	if err := r.ParseForm(); err != nil {
+		log.Printf("PostEmployee: failed to parse input: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	first_name := r.FormValue("fname")
+	last_name := r.FormValue("lname")
+	hire_date := r.FormValue("hdate")
+	manager_id, errint := strconv.Atoi(r.FormValue("mgrid"))
+	if errint != nil {
+		log.Printf("func PostEmployee: unable to convert manager_id to int: %v", errint)
+	}
+	//Insert data
+	insertEmp := "INSERT INTO employees(first_name, last_name, hire_date, manager_id) VALUES( $1, $2, TO_DATE($3,'mm-dd-yyyy'), $4)"
+	_, err := db.Exec(insertEmp, first_name, last_name, hire_date, manager_id)
+	if err != nil {
+		log.Printf("func PostEmployee: unable to save employee: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+	fmt.Fprintf(w, "The employee %s is successfully added!", first_name)
 
 }
 
@@ -165,6 +190,7 @@ func RunApp(w http.ResponseWriter, r *http.Request) {
 		renderTmpl(w, r, dbConnect())
 	case http.MethodPost:
 		//
+		PostEmployee(w, r, dbConnect())
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -248,6 +274,7 @@ var indexFile = `
       <p class="lead">Sample DB app with Go</p>
       <hr />
     </div>
+	<h3>Last 10 added employees</h3>
 	<div class="table-responsive">          
 	<table class="table">
 	  <thead>
@@ -272,8 +299,8 @@ var indexFile = `
 	  </tbody>
 	</table>
 	</div>
-	<h2>Add employee</h2>
-	<form class="form-horizontal">
+	<h3>Add employee</h3>
+	<form class="form-horizontal" method="post">
 		<div class="form-group">
 			<label class="control-label col-sm-1" for="fname">First Name:</label>
 			<div class="col-sm-10">
@@ -289,21 +316,37 @@ var indexFile = `
 		<div class="form-group">
 			<label class="control-label col-sm-1" for="hdate">Hire Date:</label>
 			<div class="col-sm-10">
-			<input type="text" class="form-control" id="hdate" placeholder="Enter Hire Date">
+			<input type="text" class="form-control" id="hdate" placeholder="mm-dd-yyyy">
 			</div>
 		</div>
 		<div class="form-group">
 			<label class="control-label col-sm-1" for="mgrid">Manager ID:</label>
 			<div class="col-sm-10">
-			<input type="number" class="form-control" id="mgrid" placeholder="Enter Manager ID">
+			<input type="text" class="form-control" id="mgrid" placeholder="Enter Manager ID">
 			</div>
 		</div>
 		<div class="form-group">
 			<div class="col-sm-offset-2 col-sm-10">
-			<button type="submit" class="btn btn-default">Submit</button>
+			<button type="button" class="btn btn-default" id="submitEmployee">Submit</button>
 			</div>
 		</div>
 	</form>
+	<script>
+    function postemployee(fname,lname,hdate,mgrid) {
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (this.readyState == 4) {
+                window.location.reload();
+            }
+        };
+        xhr.open("POST", "/", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.send("fname=" + fname + "&lname=" + lname + "&hdate=" + hdate + "&mgrid=" + mgrid);
+    }
+    document.getElementById("submitEmployee").addEventListener("click", function () {
+        postemployee(fname.value,lname.value,hdate.value,mgrid.value);
+    });
+	</script>
 </body>
 </html>
 `
