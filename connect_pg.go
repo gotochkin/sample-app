@@ -18,23 +18,9 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
-
-func configurePool(db *sql.DB) {
-
-	// Maximum number of connections in idle connection pool.
-	db.SetMaxIdleConns(3)
-
-	// Maximum number of open connections to the database.
-	db.SetMaxOpenConns(10)
-
-	// Maximum time (in seconds) that a connection can remain open.
-	db.SetConnMaxLifetime(1800 * time.Second)
-
-}
 
 func connectPostgres() (*sql.DB, error) {
 	// Connection parameters

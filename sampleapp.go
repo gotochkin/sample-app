@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-package main
+package sampleapp
 
 import (
 	"database/sql"
-	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -29,8 +28,8 @@ import (
 )
 
 var (
-	httpPort = flag.String("port", ":8080", "Listen port")
-	db       *sql.DB
+	//httpPort = flag.String("port", ":8080", "Listen port")
+	db *sql.DB
 )
 
 func renderTmpl(w http.ResponseWriter, r *http.Request, db *sql.DB) {
@@ -196,9 +195,6 @@ func RunApp(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ######################################################
-// This section can be moved to the connect_pg.go as one of the option for connection
-//
 func configurePool(db *sql.DB) {
 
 	// Maximum number of connections in idle connection pool.
@@ -212,50 +208,53 @@ func configurePool(db *sql.DB) {
 
 }
 
-func connectPostgres() (*sql.DB, error) {
-	// Connection parameters
-	// Here is example how to use environment variable for that, but it is not secure
-	// Better to use integrations with secret stores
-	var (
-		dbPort string
-		dbName = os.Getenv("DBNAME")
-		dbUser = os.Getenv("DBUSER")
-		dbPwd  = os.Getenv("DBPASS")
-		dbHost = os.Getenv("DBHOST")
-	)
-	//Default port for Postgres
-	if os.Getenv("DBPORT") == "" {
-		dbPort = "5432"
-	} else {
-		dbPort = os.Getenv("DBPORT")
-	}
-	//create URI for the database connection
-	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s", dbHost, dbUser, dbPwd, dbPort, dbName)
+// ######################################################
+// This section can be moved to the connect_pg.go as one of the option for connection
+//
+// func connectPostgres() (*sql.DB, error) {
+// 	// Connection parameters
+// 	// Here is example how to use environment variable for that, but it is not secure
+// 	// Better to use integrations with secret stores
+// 	var (
+// 		dbPort string
+// 		dbName = os.Getenv("DBNAME")
+// 		dbUser = os.Getenv("DBUSER")
+// 		dbPwd  = os.Getenv("DBPASS")
+// 		dbHost = os.Getenv("DBHOST")
+// 	)
+// 	//Default port for Postgres
+// 	if os.Getenv("DBPORT") == "" {
+// 		dbPort = "5432"
+// 	} else {
+// 		dbPort = os.Getenv("DBPORT")
+// 	}
+// 	//create URI for the database connection
+// 	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s", dbHost, dbUser, dbPwd, dbPort, dbName)
 
-	//Create a connection pool
-	dbPool, err := sql.Open("pgx", dbURI)
-	if err != nil {
-		return nil, fmt.Errorf("sql open pool error: %v", err)
-	}
+// 	//Create a connection pool
+// 	dbPool, err := sql.Open("pgx", dbURI)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("sql open pool error: %v", err)
+// 	}
 
-	//Configure the pool
-	configurePool(dbPool)
+// 	//Configure the pool
+// 	configurePool(dbPool)
 
-	return dbPool, nil
+// 	return dbPool, nil
 
-}
+// }
 
 // ######################################################
 //
 
-func main() {
-	flag.Parse()
-	//http.HandleFunc("/", renderTmpl)
-	http.HandleFunc("/", RunApp)
-	http.Handle("/test", http.FileServer(http.Dir("./html")))
-	log.Printf("Listening on port %s", *httpPort)
-	log.Fatal(http.ListenAndServe(*httpPort, nil))
-}
+// func main() {
+// 	flag.Parse()
+// 	//http.HandleFunc("/", renderTmpl)
+// 	http.HandleFunc("/", RunApp)
+// 	http.Handle("/test", http.FileServer(http.Dir("./html")))
+// 	log.Printf("Listening on port %s", *httpPort)
+// 	log.Fatal(http.ListenAndServe(*httpPort, nil))
+// }
 
 var indexFile = `
 <html lang="en">
