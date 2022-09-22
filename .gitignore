@@ -16,3 +16,6 @@
 
 #Ignore SSL certificates and wallet files
 ssl/
+
+#Ignore logs
+*.log

@@ -16,20 +16,18 @@ package sampleapp
 
 import (
 	"database/sql"
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
 var (
-	//httpPort = flag.String("port", ":8080", "Listen port")
-	db *sql.DB
+	dbversion string
+	db        *sql.DB
 )
 
 func renderTmpl(w http.ResponseWriter, r *http.Request, db *sql.DB) {
@@ -41,11 +39,25 @@ func renderTmpl(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	// data.Employees = append(data.Employees, Employee{Employee_id: 3, First_name: "Harry", Last_name: "Windsor", Hire_date: time.Now(), Manager_id: 1})
 	//t := time.Now().String
 	// Get the table data
-	data, err := getEmployees(db)
-	if err != nil {
-		log.Printf("func getEmployees: failed to get data: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	var (
+		data EmpData
+		err  error
+	)
+
+	if os.Getenv("DBVERSION") == "" || dbversion == "POSTGRESQL" {
+		data, err = getEmployeesPG(db)
+		if err != nil {
+			log.Printf("func getEmployeesPG: failed to get data: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+	} else if os.Getenv("DBVERSION") == "ORACLE" || dbversion == "ORACLE" {
+		data, err = getEmployeesOra(db)
+		if err != nil {
+			log.Printf("func getEmployeesOra: failed to get data: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	indexTmpl := template.Must(template.New("index").Parse(indexFile))
@@ -57,70 +69,48 @@ func renderTmpl(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 }
 
+func postEmployee(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	if os.Getenv("DBVERSION") == "" || dbversion == "POSTGRESQL" {
+		PostEmployeePG(w, r, db)
+	} else if os.Getenv("DBVERSION") == "ORACLE" || dbversion == "ORACLE" {
+		PostEmployeeOra(w, r, db)
+	}
+
+}
+
 func dbConnect() *sql.DB {
 	//
 	var (
 		db  *sql.DB
 		err error
 	)
-	if os.Getenv("DB_VERSION") == "" {
+	if os.Getenv("DBVERSION") == "" || os.Getenv("DBVERSION") == "POSTGRESQL" {
 		db, err = connectPostgres()
+		dbversion = "POSTGRES"
 		if err != nil {
 			log.Fatalf("connectPostgres: Unable to connect to the database %s", err)
 		}
 		// if err := initDBPG(db); err != nil {
 		// 	log.Fatalf("initDBPG unable to create table: %s", err)
 		// }
+	} else if os.Getenv("DBVERSION") == "ORACLE" {
+		// Connect using Oracle driver
+		db, err = connectOracle()
+		dbversion = "ORACLE"
+		if err != nil {
+			log.Fatalf("connectPostgres: Unable to connect to the database %s", err)
+		}
+	} else {
+		log.Fatal("This database driver is not supported")
 	}
 
 	return db
 }
-func checkDBObjectPG(dbname string, objname string) (int, error) {
-	//
-	//defer elapsedTime(time.Now(), "chekObject")
-	var cnt int
-	err := db.QueryRow("select count(*) from information_schema.tables where table_schema=? and table_name=?", dbname, objname).Scan(&cnt)
-	if err != nil {
-		//return 0, fmt.Errorf("DB.QueryRow: %v", err)
-		return -1, err
-	}
-	if cnt > 0 {
-		return cnt, nil
-	}
-	return cnt, nil
-}
+
 func execStmt(tdll string) error {
 	//
 	_, err := db.Exec(tdll)
 	return err
-}
-
-func initDBPG(db *sql.DB) error {
-	//Create table if it doesn't exist
-	var errddl error
-	createEmp := `CREATE TABLE IF NOT EXISTS employees (
-		employee_id SERIAL NOT NULL,
-		first_name VARCHAR(50) NOT NULL,
-		last_name VARCHAR(50) NOT NULL,
-		hire_date DATE NOT NULL,
-		manager_id BIGINT,
-		PRIMARY KEY (employee_id)
-	);`
-	if os.Getenv("DB_VERSION") == "" {
-		//
-		chk, chkerr := checkDBObjectPG(os.Getenv("DBNAME"), "employee")
-		if chkerr != nil {
-			log.Fatal(chkerr)
-		}
-		if chk == 0 {
-			//
-			errddl = execStmt(createEmp)
-			if errddl != nil {
-				log.Fatalf("Unable to create object: %s", errddl)
-			}
-		}
-	}
-	return errddl
 }
 
 type Employee struct {
@@ -134,54 +124,6 @@ type EmpData struct {
 	Employees []Employee
 }
 
-func getEmployees(db *sql.DB) (EmpData, error) {
-	employees := EmpData{}
-	rows, err := db.Query("SELECT employee_id,first_name,last_name,hire_date,manager_id FROM employees ORDER BY 4 DESC LIMIT 10")
-	if err != nil {
-		return employees, fmt.Errorf("An employees rows scan error: %v", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var (
-			employee_id int64
-			first_name  string
-			last_name   string
-			hire_date   time.Time
-			manager_id  int64
-		)
-		err := rows.Scan(&employee_id, &first_name, &last_name, &hire_date, &manager_id)
-		if err != nil {
-			return employees, fmt.Errorf("An employees rows scan error: %v", err)
-		}
-		employees.Employees = append(employees.Employees, Employee{Employee_id: employee_id, First_name: first_name, Last_name: last_name, Hire_date: hire_date, Manager_id: manager_id})
-	}
-	return employees, nil
-}
-func PostEmployee(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	//
-	if err := r.ParseForm(); err != nil {
-		log.Printf("PostEmployee: failed to parse input: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	first_name := r.FormValue("fname")
-	last_name := r.FormValue("lname")
-	hire_date := r.FormValue("hdate")
-	manager_id, errint := strconv.Atoi(r.FormValue("mgrid"))
-	if errint != nil {
-		log.Printf("func PostEmployee: unable to convert manager_id to int: %v", errint)
-	}
-	//Insert data
-	insertEmp := "INSERT INTO employees(first_name, last_name, hire_date, manager_id) VALUES( $1, $2, TO_DATE($3,'mm-dd-yyyy'), $4)"
-	_, err := db.Exec(insertEmp, first_name, last_name, hire_date, manager_id)
-	if err != nil {
-		log.Printf("func PostEmployee: unable to save employee: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
-	fmt.Fprintf(w, "The employee %s is successfully added!", first_name)
-
-}
-
 func RunApp(w http.ResponseWriter, r *http.Request) {
 	//
 	switch r.Method {
@@ -189,7 +131,7 @@ func RunApp(w http.ResponseWriter, r *http.Request) {
 		renderTmpl(w, r, dbConnect())
 	case http.MethodPost:
 		//
-		PostEmployee(w, r, dbConnect())
+		postEmployee(w, r, dbConnect())
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -207,54 +149,6 @@ func configurePool(db *sql.DB) {
 	db.SetConnMaxLifetime(1800 * time.Second)
 
 }
-
-// ######################################################
-// This section can be moved to the connect_pg.go as one of the option for connection
-//
-// func connectPostgres() (*sql.DB, error) {
-// 	// Connection parameters
-// 	// Here is example how to use environment variable for that, but it is not secure
-// 	// Better to use integrations with secret stores
-// 	var (
-// 		dbPort string
-// 		dbName = os.Getenv("DBNAME")
-// 		dbUser = os.Getenv("DBUSER")
-// 		dbPwd  = os.Getenv("DBPASS")
-// 		dbHost = os.Getenv("DBHOST")
-// 	)
-// 	//Default port for Postgres
-// 	if os.Getenv("DBPORT") == "" {
-// 		dbPort = "5432"
-// 	} else {
-// 		dbPort = os.Getenv("DBPORT")
-// 	}
-// 	//create URI for the database connection
-// 	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s", dbHost, dbUser, dbPwd, dbPort, dbName)
-
-// 	//Create a connection pool
-// 	dbPool, err := sql.Open("pgx", dbURI)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("sql open pool error: %v", err)
-// 	}
-
-// 	//Configure the pool
-// 	configurePool(dbPool)
-
-// 	return dbPool, nil
-
-// }
-
-// ######################################################
-//
-
-// func main() {
-// 	flag.Parse()
-// 	//http.HandleFunc("/", renderTmpl)
-// 	http.HandleFunc("/", RunApp)
-// 	http.Handle("/test", http.FileServer(http.Dir("./html")))
-// 	log.Printf("Listening on port %s", *httpPort)
-// 	log.Fatal(http.ListenAndServe(*httpPort, nil))
-// }
 
 var indexFile = `
 <html lang="en">
