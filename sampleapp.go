@@ -16,6 +16,7 @@ package sampleapp
 
 import (
 	"database/sql"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -32,13 +33,6 @@ var (
 
 func renderTmpl(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	//
-	// data := EmpData{}
-
-	// data.Employees = append(data.Employees, Employee{Employee_id: 1, First_name: "Gleb", Last_name: "Otochkin", Hire_date: time.Now(), Manager_id: 1})
-	// data.Employees = append(data.Employees, Employee{Employee_id: 2, First_name: "David", Last_name: "Finch", Hire_date: time.Now(), Manager_id: 1})
-	// data.Employees = append(data.Employees, Employee{Employee_id: 3, First_name: "Harry", Last_name: "Windsor", Hire_date: time.Now(), Manager_id: 1})
-	//t := time.Now().String
-	// Get the table data
 	var (
 		data EmpData
 		err  error
@@ -58,6 +52,8 @@ func renderTmpl(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
+	} else {
+		fmt.Println("Can't find proper database version!")
 	}
 
 	indexTmpl := template.Must(template.New("index").Parse(indexFile))
@@ -86,7 +82,7 @@ func dbConnect() *sql.DB {
 	)
 	if os.Getenv("DBVERSION") == "" || os.Getenv("DBVERSION") == "POSTGRESQL" {
 		db, err = connectPostgres()
-		dbversion = "POSTGRES"
+		dbversion = "POSTGRESQL"
 		if err != nil {
 			log.Fatalf("connectPostgres: Unable to connect to the database %s", err)
 		}
@@ -98,7 +94,7 @@ func dbConnect() *sql.DB {
 		db, err = connectOracle()
 		dbversion = "ORACLE"
 		if err != nil {
-			log.Fatalf("connectPostgres: Unable to connect to the database %s", err)
+			log.Fatalf("connectOracle: Unable to connect to the database %s", err)
 		}
 	} else {
 		log.Fatal("This database driver is not supported")
