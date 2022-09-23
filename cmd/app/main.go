@@ -27,9 +27,7 @@ var (
 
 func main() {
 	flag.Parse()
-	//http.HandleFunc("/", renderTmpl)
 	http.HandleFunc("/", sampleapp.RunApp)
-	http.Handle("/test", http.FileServer(http.Dir("./html")))
 	log.Printf("Listening on port %s", *httpPort)
 	log.Fatal(http.ListenAndServe(*httpPort, nil))
 }

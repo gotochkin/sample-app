@@ -220,6 +220,7 @@ var indexFile = `
 			</div>
 		</div>
 	</form>
+  </div>
 	<script>
     function postemployee(fname,lname,hdate,mgrid) {
         var xhr = new XMLHttpRequest();
