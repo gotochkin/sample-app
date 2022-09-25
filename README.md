@@ -14,6 +14,11 @@ You need to create a database and provide a network connection from the applicat
     * Create the table and fill it with the sample data. You can use the statements from hr_cre.sql from the application’s “sql” directory. 
     * In the cloud console go to the database page, open “Database Connection” select “Instance Wallet” from the dropdown menu and download the wallet file.
 2. PostreSQL backend. (To be added)
+    * You can start from creating a Cloud SQL instance or AlloyDB cluster and instance. All the steps are described in the [GCP documentation] (https://cloud.google.com/sql/docs/postgres/create-instance).
+    * Create a database and user which is going to be used for connection and managing application objects. The user and database are created either using Cloud Console or gcloud command. 
+    * If you connect without CloudSQL Auth Proxy then you need to put the source IP or IP range to allowlist for connection to the instance.
+    * Create the table in the database public schema and create the sample data using the hr_cre.sql.
+    * If you use SSL (highly recommended) then generate the clint certificate and key and download it along the instance root certificate to a directory (ssl directory for ecample). You will be using the path to all 3 files in the additional environment variables DBSSLROOTCA DBSSLCA DBSSLKEY. The example is provided later in the instruction.
 
 ### Prepare the application host.
 1.  Install the necessary packages to the application host. I will be showing using Oracle 8 on a VM as an example.
@@ -36,7 +41,7 @@ You need to create a database and provide a network connection from the applicat
     $ vi ~/sampleapp.env
     $ cat ~/sampleapp.env
 
-    ###############The file with env variables################
+    ###############The file with env variables for Oracle with SSL################
     DBNAME=m5c5hcat3eqqydh_myatpdb_tp.adb.oraclecloud.com
     DBWALLET=~/sample-app/ssl
     DBHOST=adb.us-ashburn-1.oraclecloud.com
@@ -45,6 +50,23 @@ You need to create a database and provide a network connection from the applicat
     DBUSER=sampleapp
     DBVERSION=ORACLE
     export DBNAME DBHOST DBPORT DBPASS DBUSER DBWALLET DBVERSION
+    #####################################################
+
+    #For Postres database the file would look like 
+
+    $ cat ~/sampleapp.env
+
+    ###############The file with env variables for Postgres with SSL################
+    DBNAME=testdb
+    DBHOST=10.10.14.23
+    DBPORT=5432
+    DBPASS=MyExtremelyDifficultToRememberPassword
+    DBUSER=sampleapp
+    DBVERSION=POSTGRESQL
+    DBSSLROOTCA=ssl/server-ca.pem
+    DBSSLCA=ssl/client-cert.pem
+    DBSSLKEY=ssl/client-key.pem 
+    export DBNAME DBHOST DBPORT DBPASS DBUSER DBWALLET DBVERSION DBSSLROOTCA DBSSLCA DBSSLKEY
     #####################################################
 
     $ source ~/sampleapp.env

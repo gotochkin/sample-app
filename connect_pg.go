@@ -17,6 +17,7 @@ package sampleapp
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -41,6 +42,17 @@ func connectPostgres() (*sql.DB, error) {
 	}
 	//create URI for the database connection
 	dbURI := fmt.Sprintf("host=%s user=%s password=%s port=%s database=%s", dbHost, dbUser, dbPwd, dbPort, dbName)
+
+	//SSL connection
+	if os.Getenv("DBSSLROOTCA") != "" {
+		if os.Getenv("DBSSLCA") == "" {
+			log.Fatal("Environment variable for clent certificate DBSSLCA should be defined!")
+		}
+		if os.Getenv("DBSSLKEY") == "" {
+			log.Fatal("Environment variable for clent key DBSSLKEY should be defined!")
+		}
+		dbURI += fmt.Sprintf(" sslmode=require sslrootcert=%s sslcert=%s sslkey=%s", os.Getenv("DBSSLROOTCA"), os.Getenv("DBSSLCA"), os.Getenv("DBSSLKEY"))
+	}
 
 	//Create a connection pool
 	dbPool, err := sql.Open("pgx", dbURI)
