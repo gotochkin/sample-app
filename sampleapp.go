@@ -117,7 +117,8 @@ type Employee struct {
 	Manager_id  int64
 }
 type EmpData struct {
-	Employees []Employee
+	Employees       []Employee
+	GetResponseTime string
 }
 
 func RunApp(w http.ResponseWriter, r *http.Request) {
@@ -152,9 +153,9 @@ var indexFile = `
   <head>
   	<title>Sample DB app</title>
   	<meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.js"></script>
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/5.2.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/5.2.1/js/bootstrap.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -187,6 +188,10 @@ var indexFile = `
 		{{ end}}
 	  </tbody>
 	</table>
+	<div class="panel panel-default">
+        <div class="panel-heading">Response time</div>
+        <div class="panel-body">{{ .GetResponseTime}}</div>
+    </div>
 	</div>
 	<h3>Add employee</h3>
 	<form class="form-horizontal" method="post">

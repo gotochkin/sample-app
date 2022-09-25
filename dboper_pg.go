@@ -28,6 +28,7 @@ import (
 
 func getEmployeesPG(db *sql.DB) (EmpData, error) {
 	employees := EmpData{}
+	t1 := time.Now()
 	rows, err := db.Query("SELECT employee_id,first_name,last_name,hire_date,manager_id FROM employees ORDER BY 4 DESC LIMIT 10")
 	if err != nil {
 		return employees, fmt.Errorf("an employees rows scan error: %v", err)
@@ -47,6 +48,8 @@ func getEmployeesPG(db *sql.DB) (EmpData, error) {
 		}
 		employees.Employees = append(employees.Employees, Employee{Employee_id: employee_id, First_name: first_name, Last_name: last_name, Hire_date: hire_date, Manager_id: manager_id})
 	}
+	//
+	employees.GetResponseTime = time.Since(t1).String()
 	return employees, nil
 }
 func PostEmployeePG(w http.ResponseWriter, r *http.Request, db *sql.DB) {
